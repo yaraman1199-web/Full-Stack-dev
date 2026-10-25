@@ -1,26 +1,124 @@
+import { create } from "zustand";
 
-import { create } from 'zustand'
+const useAnecdoteStore = create((set, get) => ({
+  anecdotes: [],
+  filter: "",
 
-const anecdotesAtStart = [
-  'If it hurts, do it more often',
-  'Adding manpower to a late software project makes it later!',
-  'The first 90 percent of the code accounts for the first 90 percent of the development time...The remaining 10 percent of the code accounts for the other 90 percent of the development time.',
-  'Any fool can write code that a computer can understand. Good programmers write code that humans can understand.',
-  'Premature optimization is the root of all evil.',
-  'Debugging is twice as hard as writing the code in the first place. Therefore, if you write the code as cleverly as possible, you are, by definition, not smart enough to debug it.'
-]
+  // Fetch anecdotes from the backend
+  initializeAnecdotes: async () => {
+    const response = await fetch("http://localhost:3001/anecdotes");
 
-const getId = () => (100000 * Math.random()).toFixed(0)
+    if (!response.ok) {
+      throw new Error("Failed to fetch anecdotes");
+    }
 
-const asObject = anecdote => ({
-  content: anecdote,
-  id: getId(),
-  votes: 0
-})
+    const anecdotes = await response.json();
 
-const useAnecdoteStore = create((set) => ({
-  anecdotes: anecdotesAtStart.map(asObject),
-  actions: {},
-}))
+    set({ anecdotes });
+  },
 
-export const useAnecdotes = () => useAnecdoteStore((state) => state.anecdotes)
+  // Update the filter
+  setFilter: (value) => set({ filter: value }),
+
+  // Create a new anecdote in the backend
+  createAnecdote: async (content) => {
+    const newAnecdote = {
+      content,
+      votes: 0,
+    };
+
+    const response = await fetch("http://localhost:3001/anecdotes", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(newAnecdote),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to create anecdote");
+    }
+
+    const savedAnecdote = await response.json();
+
+    set((state) => ({
+      anecdotes: state.anecdotes.concat(savedAnecdote),
+    }));
+  },
+
+  // Save votes to the backend
+  voteAnecdote: async (id) => {
+    const anecdote = get().anecdotes.find((a) => String(a.id) === String(id));
+
+    if (!anecdote) return;
+
+    const updatedAnecdote = {
+      ...anecdote,
+      votes: anecdote.votes + 1,
+    };
+
+    const response = await fetch(`http://localhost:3001/anecdotes/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updatedAnecdote),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to update vote");
+    }
+
+    const savedAnecdote = await response.json();
+
+    set((state) => ({
+      anecdotes: state.anecdotes.map((a) =>
+        String(a.id) === String(id) ? savedAnecdote : a,
+      ),
+    }));
+  },
+  deleteAnecdote: async (id) => {
+    const anecdote = get().anecdotes.find((a) => String(a.id) === String(id));
+
+    if (!anecdote || anecdote.votes !== 0) return;
+
+    const response = await fetch(`http://localhost:3001/anecdotes/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to delete anecdote");
+    }
+
+    set((state) => ({
+      anecdotes: state.anecdotes.filter((a) => String(a.id) !== String(id)),
+    }));
+  },
+}));
+
+// Custom hooks
+export const useFilter = () => useAnecdoteStore((state) => state.filter);
+
+export const useAnecdotes = () => useAnecdoteStore((state) => state.anecdotes);
+
+export const useAnecdoteActions = () => {
+  const createAnecdote = useAnecdoteStore((state) => state.createAnecdote);
+
+  const voteAnecdote = useAnecdoteStore((state) => state.voteAnecdote);
+
+  const deleteAnecdote = useAnecdoteStore((state) => state.deleteAnecdote);
+
+  const setFilter = useAnecdoteStore((state) => state.setFilter);
+
+  const initializeAnecdotes = useAnecdoteStore(
+    (state) => state.initializeAnecdotes,
+  );
+
+  return {
+    createAnecdote,
+    voteAnecdote,
+    setFilter,
+    deleteAnecdote,
+    initializeAnecdotes,
+  };
+};
