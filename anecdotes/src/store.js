@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-const useAnecdoteStore = create((set, get) => ({
+export const useAnecdoteStore = create((set, get) => ({
   anecdotes: [],
   filter: "",
 
@@ -77,6 +77,8 @@ const useAnecdoteStore = create((set, get) => ({
       ),
     }));
   },
+
+  // Delete an anecdote only if it has zero votes
   deleteAnecdote: async (id) => {
     const anecdote = get().anecdotes.find((a) => String(a.id) === String(id));
 
@@ -117,8 +119,8 @@ export const useAnecdoteActions = () => {
   return {
     createAnecdote,
     voteAnecdote,
-    setFilter,
     deleteAnecdote,
+    setFilter,
     initializeAnecdotes,
   };
 };

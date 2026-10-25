@@ -1,8 +1,8 @@
-name: Anecdotes tests
+name: Anecdotes tests check
 
 on:
   push:
-    branches: [xmain]
+    branches: [main]
 
 jobs:
   playwright-tests:
